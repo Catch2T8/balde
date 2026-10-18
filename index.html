@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super El Niño Rain Catcher</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #1a0800;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            color: #fff;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 480px;
+            max-height: 850px;
+            background: linear-gradient(180deg, #ff4500 0%, #ff8c00 40%, #ffd700 80%, #d2691e 100%);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-box {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-weight: bold;
+            font-size: 16px;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            z-index: 20;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal h1 {
+            font-size: 28px;
+            color: #ffaa00;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        .modal h2.game-over-title {
+            font-size: 32px;
+            color: #ff3333;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 8px rgba(255,0,0,0.6);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .modal p {
+            font-size: 15px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            color: #eee;
+        }
+
+        .btn {
+            background: linear-gradient(180deg, #28a745 0%, #218838 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.1s, background 0.2s;
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .instructions-list {
+            text-align: left;
+            margin: 15px 0;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .instructions-list li {
+            margin-bottom: 8px;
+            list-style-type: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .instructions-list li span {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui-overlay">
+        <div class="hud-box" id="score-display">Water Collected: 0L</div>
+        <div class="hud-box" id="lives-display">Balde Health: 100%</div>
+    </div>
+
+    <!-- Start Modal -->
+    <div id="start-modal" class="modal">
+        <h1>Super El Niño Season</h1>
+        <p>A severe drought has hit! Catch precious raindrops using your trusty Philippine <i>Balde</i> (water bucket) before they evaporate.</p>
+        
+        <ul class="instructions-list">
+            <li><span>💧</span> <b>Raindrops:</b> Collect to fill water (+1 Liter)</li>
+            <li><span>⭐</span> <b>Golden Drops:</b> Bonus water (+3 Liters)</li>
+            <li><span>🔥</span> <b>Heatwaves:</b> Avoid these! They damage your balde</li>
+        </ul>
+
+        <p style="font-size: 13px; color: #ccc;">
+            <b>Mobile Controls:</b> Touch & drag screen<br>
+            <b>PC Controls:</b> Mouse move OR Left/Right Arrow Keys / A & D
+        </p>
+        <button class="btn" id="start-btn">START COLLECTING</button>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal hidden">
+        <h2 class="game-over-title">Bumili kayo ng balde</h2>
+        <p>Your balde dried up and cracked under extreme drought heat!</p>
+        <div class="hud-box" id="final-score" style="margin-bottom: 20px;">Total Water Saved: 0L</div>
+        <button class="btn" id="restart-btn">TRY AGAIN</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const container = document.getElementById('game-container');
+
+// UI Elements
+const startModal = document.getElementById('start-modal');
+const gameOverModal = document.getElementById('game-over-modal');
+const startBtn = document.getElementById('start-btn');
+const restartBtn = document.getElementById('restart-btn');
+const scoreDisplay = document.getElementById('score-display');
+const livesDisplay = document.getElementById('lives-display');
+const finalScoreDisplay = document.getElementById('final-score');
+
+// Game State
+let isPlaying = false;
+let score = 0;
+let bucketHealth = 100;
+let animFrameId = null;
+let lastTime = 0;
+
+// Canvas Sizing
+function resizeCanvas() {
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Balde Properties
+const balde = {
+    x: 0,
+    y: 0,
+    width: 80,
+    height: 70,
+    speed: 450 // Speed for keyboard movement (px/sec)
+};
+
+// Key Input Tracking
+const keys = {
+    left: false,
+    right: false
+};
+
+// Falling Objects
+let items = [];
+let spawnTimer = 0;
+let spawnInterval = 600; // ms
+
+// --- Input Handlers --- //
+
+function updateBaldePositionX(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const touchX = clientX - rect.left;
+    balde.x = touchX - balde.width / 2;
+    clampBaldePosition();
+}
+
+function clampBaldePosition() {
+    if (balde.x < 0) balde.x = 0;
+    if (balde.x + balde.width > canvas.width) balde.x = canvas.width - balde.width;
+}
+
+// 1. Mobile Touch Controls for Canvas
+let isTouching = false;
+canvas.addEventListener('touchstart', (e) => {
+    if (!isPlaying) return;
+    e.preventDefault();
+    isTouching = true;
+    updateBaldePositionX(e.touches[0].clientX);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    if (!isPlaying || !isTouching) return;
+    e.preventDefault();
+    updateBaldePositionX(e.touches[0].clientX);
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => { isTouching = false; });
+
+// 2. PC Mouse Control
+canvas.addEventListener('mousemove', (e) => {
+    if (!isPlaying) return;
+    updateBaldePositionX(e.clientX);
+});
+
+// 3. PC Keyboard Controls (Arrow Keys / A & D)
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        keys.left = true;
+    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        keys.right = true;
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        keys.left = false;
+    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        keys.right = false;
+    }
+});
+
+// Item Spawner
+function spawnItem() {
+    const types = ['water', 'water', 'water', 'gold', 'fire'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    
+    let radius, speed, color;
+    if (type === 'water') {
+        radius = 10;
+        speed = 200 + Math.random() * 150 + (score * 2);
+        color = '#00d2ff';
+    } else if (type === 'gold') {
+        radius = 12;
+        speed = 250 + Math.random() * 100 + (score * 2);
+        color = '#ffd700';
+    } else if (type === 'fire') {
+        radius = 14;
+        speed = 180 + Math.random() * 120 + (score * 2);
+        color = '#ff3300';
+    }
+
+    items.push({
+        x: Math.random() * (canvas.width - 40) + 20,
+        y: -20,
+        type: type,
+        radius: radius,
+        speed: speed,
+        color: color
+    });
+}
+
+// Draw Traditional Philippine Plastic Balde
+function drawBalde(x, y, width, height) {
+    ctx.save();
+    
+    // 1. Metallic Handle Arc
+    ctx.strokeStyle = '#b5b5b5';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(x + width / 2, y + 10, width / 1.8, Math.PI, 0);
+    ctx.stroke();
+
+    // 2. Balde Body
+    const topWidth = width;
+    const bottomWidth = width * 0.75;
+    const inset = (topWidth - bottomWidth) / 2;
+
+    const grad = ctx.createLinearGradient(x, y, x + width, y);
+    grad.addColorStop(0, '#0055a5');
+    grad.addColorStop(0.3, '#0088ff');
+    grad.addColorStop(0.8, '#0066cc');
+    grad.addColorStop(1, '#003388');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(x, y + 10);
+    ctx.lineTo(x + topWidth, y + 10);
+    ctx.lineTo(x + topWidth - inset, y + height);
+    ctx.lineTo(x + inset, y + height);
+    ctx.closePath();
+    ctx.fill();
+
+    // 3. Molded Plastic Horizontal Ridges
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    for (let i = 1; i <= 2; i++) {
+        const ridgeY = y + 10 + (height - 10) * (i / 3);
+        const rInset = inset * (i / 3);
+        ctx.beginPath();
+        ctx.moveTo(x + rInset, ridgeY);
+        ctx.lineTo(x + topWidth - rInset, ridgeY);
+        ctx.stroke();
+    }
+
+    // 4. Reinforced Rim
+    ctx.fillStyle = '#004499';
+    ctx.beginPath();
+    ctx.ellipse(x + width / 2, y + 10, topWidth / 2, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#002266';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Inside Bucket Depth
+    ctx.fillStyle = '#002b66';
+    ctx.beginPath();
+    ctx.ellipse(x + width / 2, y + 10, (topWidth / 2) - 3, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+// Draw Background Sun & El Niño Effect
+function drawBackground() {
+    const sunX = canvas.width / 2;
+    const sunY = 80;
+    
+    const sunGrad = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 120);
+    sunGrad.addColorStop(0, '#ffffff');
+    sunGrad.addColorStop(0.2, '#fff700');
+    sunGrad.addColorStop(0.6, 'rgba(255, 69, 0, 0.4)');
+    sunGrad.addColorStop(1, 'transparent');
+
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, 120, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// Draw Falling Drop Items
+function drawItem(item) {
+    ctx.save();
+    if (item.type === 'water' || item.type === 'gold') {
+        ctx.fillStyle = item.color;
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, item.radius, 0, Math.PI);
+        ctx.quadraticCurveTo(item.x - item.radius, item.y - item.radius, item.x, item.y - item.radius * 2);
+        ctx.quadraticCurveTo(item.x + item.radius, item.y - item.radius, item.x + item.radius, item.y);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(item.x - item.radius / 3, item.y - item.radius / 3, item.radius / 3, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (item.type === 'fire') {
+        ctx.fillStyle = '#ff3300';
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, item.radius * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+// Main Game Loop
+function gameLoop(timestamp) {
+    if (!isPlaying) return;
+
+    if (!lastTime) lastTime = timestamp;
+    const deltaTime = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
+    if (keys.left) {
+        balde.x -= balde.speed * deltaTime;
+        clampBaldePosition();
+    }
+    if (keys.right) {
+        balde.x += balde.speed * deltaTime;
+        clampBaldePosition();
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground();
+
+    spawnTimer += deltaTime * 1000;
+    if (spawnTimer > spawnInterval) {
+        spawnItem();
+        spawnTimer = 0;
+        if (spawnInterval > 250) spawnInterval -= 2;
+    }
+
+    balde.y = canvas.height - balde.height - 30;
+    drawBalde(balde.x, balde.y, balde.width, balde.height);
+
+    for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.y += item.speed * deltaTime;
+        drawItem(item);
+
+        const baldeTopY = balde.y + 10;
+        if (
+            item.y + item.radius >= baldeTopY &&
+            item.y - item.radius <= baldeTopY + 20 &&
+            item.x >= balde.x &&
+            item.x <= balde.x + balde.width
+        ) {
+            if (item.type === 'water') {
+                score += 1;
+            } else if (item.type === 'gold') {
+                score += 3;
+            } else if (item.type === 'fire') {
+                bucketHealth -= 25;
+            }
+
+            updateHUD();
+            items.splice(i, 1);
+            continue;
+        }
+
+        if (item.y - item.radius > canvas.height) {
+            if (item.type === 'water' || item.type === 'gold') {
+                bucketHealth -= 5;
+                updateHUD();
+            }
+            items.splice(i, 1);
+        }
+    }
+
+    if (bucketHealth <= 0) {
+        endGame();
+        return;
+    }
+
+    animFrameId = requestAnimationFrame(gameLoop);
+}
+
+function updateHUD() {
+    scoreDisplay.textContent = `Water Collected: ${score}L`;
+    livesDisplay.textContent = `Balde Health: ${Math.max(0, bucketHealth)}%`;
+}
+
+function startGame() {
+    score = 0;
+    bucketHealth = 100;
+    items = [];
+    spawnInterval = 600;
+    spawnTimer = 0;
+    lastTime = 0;
+    keys.left = false;
+    keys.right = false;
+    isPlaying = true;
+
+    balde.x = canvas.width / 2 - balde.width / 2;
+
+    updateHUD();
+
+    startModal.classList.add('hidden');
+    gameOverModal.classList.add('hidden');
+
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    animFrameId = requestAnimationFrame(gameLoop);
+}
+
+function endGame() {
+    isPlaying = false;
+    finalScoreDisplay.textContent = `Total Water Saved: ${score} Liters`;
+    gameOverModal.classList.remove('hidden');
+}
+
+// Event Listeners for Buttons (Both Click and Touch Support)
+startBtn.addEventListener('click', startGame);
+startBtn.addEventListener('touchend', (e) => { e.preventDefault(); startGame(); });
+
+restartBtn.addEventListener('click', startGame);
+restartBtn.addEventListener('touchend', (e) => { e.preventDefault(); startGame(); });
+</script>
+</body>
+</html>
